@@ -2,6 +2,7 @@ import logging
 import asyncio
 import time
 import aiohttp
+import requests
 import math
 
 # Инициализация логгера для модуля ElevationAnalyzer
@@ -18,17 +19,16 @@ class ElevationAnalyzer:
         # Задержка перед запросом
         time.sleep(self.delay_ms / 1000)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                data = response.json()
+        response = requests.get(url)
+        data = response.json()
 
-                if data.get('results') and len(data['results']) > 0:
-                    elevation = data['results'][0]['elevation']
-                    logger.info(f"Высота точки {coords}: {elevation}")
-                    return elevation
-                else:
-                    logger.warning('No elevation data found for the given coordinates.')
-                    return None
+        if data.get('results') and len(data['results']) > 0:
+            elevation = data['results'][0]['elevation']
+            logger.info(f"Высота точки {coords}: {elevation}")
+            return elevation
+        else:
+            logger.warning('No elevation data found for the given coordinates.')
+            return None
 
     # async def get_elevation(coords, delay_ms=150):
     #     url = f"https://api.open-elevation.com/api/v1/lookup?locations={coords[0]},{coords[1]}"
