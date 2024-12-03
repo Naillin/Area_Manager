@@ -143,7 +143,7 @@ def check_topic_conditions(topic_id, db_path):
     strP = ""
     for event in predicted_events:
         strP += str(event['Value_Data'])
-    logger.info(f"strP: {strP}")
+    logger.info(f"strP: {strP}|")
 
     # Определяем последнюю и предпоследнюю фактическую высоту топика
     if len(data) < 2:
