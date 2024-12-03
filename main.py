@@ -62,6 +62,48 @@ def calculate_moving_average(data, window_size = 7):
 
     return moving_average
 
+def calculate_ema(data, window_size = 7, alpha = 0.5):
+    ema = []
+
+    # Преобразуем строковые значения в числа
+    data_values = [float(item['Value_Data']) for item in data]
+
+    # Рассчитываем EMA
+    for i in range(len(data_values)):
+        if i < window_size - 1:
+            ema.append({'Value_Data': None, 'Time_Data': data[i]['Time_Data']})  # Недостаточно данных для расчета
+        else:
+            if i == window_size - 1:
+                # Начальное значение EMA - простое скользящее среднее
+                sum_values = sum(data_values[0:window_size])
+                average = sum_values / window_size
+                ema.append({'Value_Data': average, 'Time_Data': data[i]['Time_Data']})
+            else:
+                # Рассчитываем EMA
+                previous_ema = ema[i - 1]['Value_Data']
+                current_value = data_values[i]
+                current_ema = alpha * current_value + (1 - alpha) * previous_ema
+                ema.append({'Value_Data': current_ema, 'Time_Data': data[i]['Time_Data']})
+
+    # Предсказываем на 3 дня вперед с учетом тенденции
+    last_values = data_values[-window_size:]
+    last_times = [item['Time_Data'] for item in data[-window_size:]]
+    last_ema = ema[-1]['Value_Data']
+
+    # Рассчитываем средний интервал времени между последними событиями
+    time_intervals = [(last_times[i + 1] - last_times[i]).total_seconds() for i in range(len(last_times) - 1)]
+    average_time_interval = sum(time_intervals) / len(time_intervals)
+
+    # Рассчитываем тенденцию (наклон)
+    slope = (last_values[-1] - last_values[0]) / (window_size - 1)
+
+    for i in range(3):
+        predicted_value = last_ema + slope * (i + 1)
+        predicted_time = last_times[-1] + timedelta(seconds=average_time_interval * (i + 1))
+        ema.append({'Value_Data': predicted_value, 'Time_Data': predicted_time})
+
+    return ema
+
 def check_topic_conditions(topic_id, db_path):
     conn = sqlite3.connect(db_path)
     conn.execute('PRAGMA journal_mode=WAL')
@@ -89,13 +131,19 @@ def check_topic_conditions(topic_id, db_path):
     logger.info(f"Data for topic {topic_id}: {data}")
 
     # Вычисляем скользящее среднее и предсказываем 3 события
-    predicted_events = calculate_moving_average(data)
+    #predicted_events = calculate_moving_average(data, 7)
+    predicted_events = calculate_ema(data, 7, 0.9)
     if len(predicted_events) < 10:
         logger.warning(f"Not enough data to predict for topic {topic_id}.")
         return False, None  # Недостаточно данных для предсказания
 
     p1, p2, p3 = [event['Value_Data'] for event in predicted_events[-3:]]
     logger.info(f"Predicted values for topic {topic_id}: p1={p1}, p2={p2}, p3={p3}")
+
+    strP = None
+    for event in predicted_events:
+        strP = strP + event['Value_Data']
+    logger.info(f"strP: {topic_id}")
 
     # Определяем последнюю и предпоследнюю фактическую высоту топика
     if len(data) < 2:
