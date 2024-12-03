@@ -68,7 +68,7 @@ def check_topic_conditions(topic_id, db_path):
     cursor = conn.cursor()
 
     # Получаем данные топика
-    cursor.execute("SELECT Altitude_Topic FROM Topic WHERE ID_Topic = ?", (topic_id,))
+    cursor.execute("SELECT Altitude_Topic FROM Topics WHERE ID_Topic = ?", (topic_id,))
     alt = cursor.fetchone()
     if alt is None:
         logger.warning(f"Topic with ID {topic_id} not found.")
@@ -122,7 +122,7 @@ def main():
         with sqlite3.connect(db_path) as conn:
             conn.execute('PRAGMA journal_mode=WAL')
             cursor = conn.cursor()
-            cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topic")
+            cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topics")
             topics = cursor.fetchall()
 
         for topic in topics:
