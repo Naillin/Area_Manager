@@ -114,9 +114,11 @@ def check_topic_conditions(topic_id, db_path):
         return False, p3
 
 def main():
+    logger.info(f"Starting...")
     db_path = '../MQTT_Data_collector/mqtt_data.db'
     analyzer = ElevationAnalyzer(150)
 
+    logger.info(f"All done!")
     while True:
         # Получаем все топики
         with sqlite3.connect(db_path) as conn:
