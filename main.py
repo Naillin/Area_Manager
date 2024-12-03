@@ -115,7 +115,7 @@ def check_topic_conditions(topic_id, db_path):
 
 def main():
     db_path = '../MQTT_Data_collector/mqtt_data.db'
-    analyzer = ElevationAnalyzer()
+    analyzer = ElevationAnalyzer(150)
 
     while True:
         # Получаем все топики

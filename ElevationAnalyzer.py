@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 import aiohttp
 import math
 
@@ -7,15 +8,19 @@ import math
 logger = logging.getLogger('area-manager.ElevationAnalyzer')
 
 class ElevationAnalyzer:
-    async def get_elevation(self, coords, delay_ms=150):
+
+    def __init__(self, delay_ms):
+        self.delay_ms = delay_ms
+
+    def get_elevation(self, coords):
         url = f"https://api.open-elevation.com/api/v1/lookup?locations={coords[0]},{coords[1]}"
 
         # Задержка перед запросом
-        await asyncio.sleep(delay_ms / 1000)
+        time.sleep(self.delay_ms / 1000)
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
-                data = await response.json()
+                data = response.json()
 
                 if data.get('results') and len(data['results']) > 0:
                     elevation = data['results'][0]['elevation']
@@ -24,6 +29,24 @@ class ElevationAnalyzer:
                 else:
                     logger.warning('No elevation data found for the given coordinates.')
                     return None
+
+    # async def get_elevation(coords, delay_ms=150):
+    #     url = f"https://api.open-elevation.com/api/v1/lookup?locations={coords[0]},{coords[1]}"
+    #
+    #     # Задержка перед запросом
+    #     await asyncio.sleep(delay_ms / 1000)
+    #
+    #     async with aiohttp.ClientSession() as session:
+    #         async with session.get(url) as response:
+    #             data = await response.json()
+    #
+    #             if data.get('results') and len(data['results']) > 0:
+    #                 elevation = data['results'][0]['elevation']
+    #                 logger.info(f"Высота точки {coords}: {elevation}")
+    #                 return elevation
+    #             else:
+    #                 logger.warning('No elevation data found for the given coordinates.')
+    #                 return None
 
     def format_coords(self, coords):
         return f"{coords[0]:.6f},{coords[1]:.6f}"
