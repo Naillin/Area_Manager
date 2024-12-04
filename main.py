@@ -62,7 +62,7 @@ def calculate_moving_average(data, window_size = 7):
 
     return moving_average
 
-def calculate_ema(data, window_size = 7, alpha = 0.5):
+def calculate_ema(data, window_size = 5, alpha = 0.8):
     ema = []
 
     # Преобразуем строковые значения в числа
