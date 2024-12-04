@@ -7,20 +7,23 @@ import platform
 from logging.handlers import SysLogHandler
 from ElevationAnalyzer import ElevationAnalyzer
 
-# Настройка логгера
-logger = logging.getLogger('area-manager.main')
-logger.setLevel(logging.INFO)
+# Настройка корневого логгера
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
 
 if platform.system() == 'Windows':
     # Логгер для Windows (в файл)
     file_handler = logging.FileHandler('area-manager.log')
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(message)s'))
-    logger.addHandler(file_handler)
+    root_logger.addHandler(file_handler)
 else:
     # Логгер для Linux (в syslog через systemd)
     syslog_handler = SysLogHandler(address='/dev/log')
     syslog_handler.setFormatter(logging.Formatter('%(name)s: %(message)s'))
-    logger.addHandler(syslog_handler)
+    root_logger.addHandler(syslog_handler)
+
+# Логгер для main.py
+logger = logging.getLogger('area-manager.main')
 
 def calculate_moving_average(data, window_size = 7):
     moving_average = []
@@ -156,7 +159,8 @@ def check_topic_conditions(topic_id, db_path):
         logger.warning(f"Not enough data to compare for topic {topic_id}.")
         return False, p3  # Недостаточно данных для сравнения
 
-    f1, f2 = float(data[0]['Value_Data']), float(data[1]['Value_Data'])
+    revertData = data[::-1]
+    f1, f2 = float(revertData[0]['Value_Data']), float(revertData[1]['Value_Data'])
     logger.info(f"Actual values for topic {topic_id}: f1={f1}, f2={f2}")
 
     # Проверяем условия
@@ -186,7 +190,7 @@ def main():
             logger.info(f"Checking topic {topic_id}")
 
             # Проверяем, когда был последний расчет
-            if check_time is None or (datetime.now() - datetime.fromisoformat(check_time)).total_seconds() >= 2 * 3600:
+            if check_time is None or (datetime.now() - datetime.fromtimestamp(check_time)).total_seconds() >= 2 * 3600:
                 # Открываем соединение для проверки условий
                 with sqlite3.connect(db_path) as conn:
                     conn.execute('PRAGMA journal_mode=WAL')
@@ -287,7 +291,7 @@ main()
 #             logger.info(f"Checking topic {topic_id}")
 #
 #             # Проверяем, когда был последний расчет
-#             if check_time is None or (datetime.now() - datetime.fromisoformat(check_time)).total_seconds() >= 2 * 3600:
+#             if check_time is None or (datetime.now() - datetime.fromtimestamp(check_time)).total_seconds() >= 2 * 3600:
 #                 # Открываем соединение для проверки условий
 #                 with sqlite3.connect(db_path) as conn:
 #                     conn.execute('PRAGMA journal_mode=WAL')
