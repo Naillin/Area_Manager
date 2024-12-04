@@ -163,71 +163,105 @@ def check_topic_conditions(topic_id, db_path):
         logger.info(f"Conditions not met for topic {topic_id}: p3={p3} > alt={alt} and f1={f1} < f2={f2}")
         return False, p3
 
+# def main():
+#     logger.info(f"Starting...")
+#     db_path = '../MQTT_Data_collector/mqtt_data.db'
+#     analyzer = ElevationAnalyzer(150)
+#
+#     logger.info(f"All done!")
+#     while True:
+#         # Получаем все топики
+#         with sqlite3.connect(db_path) as conn:
+#             conn.execute('PRAGMA journal_mode=WAL')
+#             cursor = conn.cursor()
+#             cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topics")
+#             topics = cursor.fetchall()
+#
+#         for topic in topics:
+#             topic_id, latitude, longitude, check_time = topic
+#             logger.info(f"Checking topic {topic_id}")
+#
+#             # Проверяем, когда был последний расчет
+#             if check_time is None or (datetime.now() - datetime.fromisoformat(check_time)).total_seconds() >= 2 * 3600:
+#                 # Открываем соединение для проверки условий
+#                 with sqlite3.connect(db_path) as conn:
+#                     conn.execute('PRAGMA journal_mode=WAL')
+#                     cursor = conn.cursor()
+#                     conditions_met, p3 = check_topic_conditions(topic_id, db_path)
+#
+#                 if conditions_met:
+#                     logger.info(f"Conditions met for topic {topic_id}. Calculating area points.")
+#
+#                     center_coords = (latitude, longitude)
+#                     initial_height = p3  # Используем последнее предсказанное значение (p3)
+#
+#                     # Вычисляем точки
+#                     result = analyzer.find_depression_area_with_islands(center_coords, initial_height)
+#
+#                     # Открываем соединение для записи данных
+#                     with sqlite3.connect(db_path) as conn:
+#                         conn.execute('PRAGMA journal_mode=WAL')
+#                         cursor = conn.cursor()
+#
+#                         # Удаляем старые данные для топика
+#                         cursor.execute("""
+#                             DELETE FROM AreaPoints WHERE ID_Topic = ?
+#                         """, (topic_id,))
+#
+#                         # Записываем новые данные в таблицу AreaPoints
+#                         cursor.execute("""
+#                             INSERT INTO AreaPoints (ID_Topic, Depression_AreaPoint, Perimeter_AreaPoint, Included_AreaPoint, Islands_AreaPoint)
+#                             VALUES (?, ?, ?, ?, ?)
+#                         """, (topic_id, str(result['depression_points']), str(result['perimeter_points']),
+#                               str(result['included_points']), str(result['islands'])))
+#
+#                         # Обновляем CheckTime_Topic
+#                         cursor.execute("""
+#                             UPDATE Topic SET CheckTime_Topic = ? WHERE ID_Topic = ?
+#                         """, (datetime.now().timestamp(), topic_id))
+#
+#                         conn.commit()
+#                         logger.info(f"Data for topic {topic_id} inserted into AreaPoints and CheckTime_Topic updated.")
+#                 else:
+#                     logger.info(f"Conditions not met for topic {topic_id}. Skipping calculation.")
+#             else:
+#                 logger.info(f"Topic {topic_id} was recently checked. Skipping calculation.")
+#
+#         time.sleep(60)  # Пауза перед следующей итерацией
+
 def main():
-    logger.info(f"Starting...")
-    db_path = '../MQTT_Data_collector/mqtt_data.db'
-    analyzer = ElevationAnalyzer(150)
+    # Пример данных
+    data = [
+        {'Value_Data': '87', 'Time_Data': datetime(2023, 10, 1, 12, 0)},
+        {'Value_Data': '88', 'Time_Data': datetime(2023, 10, 2, 12, 0)},
+        {'Value_Data': '85', 'Time_Data': datetime(2023, 10, 3, 12, 0)},
+        {'Value_Data': '90', 'Time_Data': datetime(2023, 10, 4, 12, 0)},
+        {'Value_Data': '88', 'Time_Data': datetime(2023, 10, 5, 12, 0)},
+        {'Value_Data': '88', 'Time_Data': datetime(2023, 10, 6, 12, 0)},
+        {'Value_Data': '89', 'Time_Data': datetime(2023, 10, 7, 12, 0)},
+        {'Value_Data': '90', 'Time_Data': datetime(2023, 10, 8, 12, 0)},
+        {'Value_Data': '91', 'Time_Data': datetime(2023, 10, 9, 12, 0)},
+        {'Value_Data': '91.5', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '92', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '93', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '94', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '95', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '97', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '98', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '99', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '100', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '102', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '103', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '104', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+        {'Value_Data': '105', 'Time_Data': datetime(2023, 10, 10, 12, 0)},
+    ]
 
-    logger.info(f"All done!")
-    while True:
-        # Получаем все топики
-        with sqlite3.connect(db_path) as conn:
-            conn.execute('PRAGMA journal_mode=WAL')
-            cursor = conn.cursor()
-            cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topics")
-            topics = cursor.fetchall()
+    # Рассчитываем EMA
+    ema_result = calculate_ema(data)
 
-        for topic in topics:
-            topic_id, latitude, longitude, check_time = topic
-            logger.info(f"Checking topic {topic_id}")
-
-            # Проверяем, когда был последний расчет
-            if check_time is None or (datetime.now() - datetime.fromisoformat(check_time)).total_seconds() >= 2 * 3600:
-                # Открываем соединение для проверки условий
-                with sqlite3.connect(db_path) as conn:
-                    conn.execute('PRAGMA journal_mode=WAL')
-                    cursor = conn.cursor()
-                    conditions_met, p3 = check_topic_conditions(topic_id, db_path)
-
-                if conditions_met:
-                    logger.info(f"Conditions met for topic {topic_id}. Calculating area points.")
-
-                    center_coords = (latitude, longitude)
-                    initial_height = p3  # Используем последнее предсказанное значение (p3)
-
-                    # Вычисляем точки
-                    result = analyzer.find_depression_area_with_islands(center_coords, initial_height)
-
-                    # Открываем соединение для записи данных
-                    with sqlite3.connect(db_path) as conn:
-                        conn.execute('PRAGMA journal_mode=WAL')
-                        cursor = conn.cursor()
-
-                        # Удаляем старые данные для топика
-                        cursor.execute("""
-                            DELETE FROM AreaPoints WHERE ID_Topic = ?
-                        """, (topic_id,))
-
-                        # Записываем новые данные в таблицу AreaPoints
-                        cursor.execute("""
-                            INSERT INTO AreaPoints (ID_Topic, Depression_AreaPoint, Perimeter_AreaPoint, Included_AreaPoint, Islands_AreaPoint)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (topic_id, str(result['depression_points']), str(result['perimeter_points']),
-                              str(result['included_points']), str(result['islands'])))
-
-                        # Обновляем CheckTime_Topic
-                        cursor.execute("""
-                            UPDATE Topic SET CheckTime_Topic = ? WHERE ID_Topic = ?
-                        """, (datetime.now().timestamp(), topic_id))
-
-                        conn.commit()
-                        logger.info(f"Data for topic {topic_id} inserted into AreaPoints and CheckTime_Topic updated.")
-                else:
-                    logger.info(f"Conditions not met for topic {topic_id}. Skipping calculation.")
-            else:
-                logger.info(f"Topic {topic_id} was recently checked. Skipping calculation.")
-
-        time.sleep(60)  # Пауза перед следующей итерацией
+    # Выводим результаты
+    for item in ema_result:
+        print(f"Value_Data: {item['Value_Data']}, Time_Data: {item['Time_Data']}")
 
 # Запуск функции
 main()
