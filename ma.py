@@ -48,7 +48,7 @@ class MovingAverage:
 
         return moving_average
 
-    def calculate_ema(self, data, alpha = 0.2):
+    def calculate_ema(self, data, alpha=0.2):
         ema = []
 
         # Преобразуем строковые значения в числа
@@ -90,7 +90,7 @@ class MovingAverage:
 
         return ema
 
-    def calculate_ema_test(self, data, smoothing = 2):
+    def calculate_ema_test(self, data, smoothing=2):
         # Проверка на пустоту данных
         if not data:
             return []
@@ -113,22 +113,27 @@ class MovingAverage:
             else:
                 ema = alpha * data_values[i] + (1 - alpha) * ema
                 ema_data.append({"Value_Data": ema, "Time_Data": data[i]["Time_Data"]})
+                logger.debug(f"Moving average at index {i}: {ema}")
 
         # Предсказываем на 3 дня вперед с учетом тенденции
         last_values = data_values[-self.window_size:]
         last_times = [item["Time_Data"] for item in data[-self.window_size:]]
         last_ema = ema  # Последнее рассчитанное EMA
+        logger.debug(f"Last ema: {last_ema}")
 
         # Рассчитываем средний интервал времени между последними событиями
-        time_intervals = [last_times[i] - last_times[i - 1] for i in range(1, len(last_times))]
-        average_time_interval = sum(time_intervals) / len(time_intervals)
+        time_intervals = [(last_times[i] - last_times[i - 1]).total_seconds() for i in range(1, len(last_times))]
+        average_time_interval = timedelta(seconds=sum(time_intervals) / len(time_intervals))
+        logger.debug(f"Average time interval: {average_time_interval}")
 
         # Рассчитываем тенденцию (наклон)
         slope = (last_values[-1] - last_values[0]) / (self.window_size - 1)
+        logger.debug(f"Slope: {slope}")
 
         for i in range(3):
             predicted_value = last_ema + slope * (i + 1)
             predicted_time = last_times[-1] + average_time_interval * (i + 1)
             ema_data.append({"Value_Data": predicted_value, "Time_Data": predicted_time})
+            logger.debug(f"Predicted value for day {i + 1}: {predicted_value} at {predicted_time}")
 
         return ema_data
