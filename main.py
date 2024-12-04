@@ -120,7 +120,7 @@ def check_topic_conditions(topic_id, db_path):
     logger.info(f"Altitude for topic {topic_id}: {alt}")
 
     # Получаем данные Data для топика
-    cursor.execute("SELECT Value_Data, Time_Data FROM Data WHERE ID_Topic = ? ORDER BY Time_Data DESC", (topic_id,))
+    cursor.execute("SELECT Value_Data, Time_Data FROM Data WHERE ID_Topic = ? ORDER BY Time_Data ASC", (topic_id,))
     data = [{'Value_Data': row[0], 'Time_Data': datetime.fromtimestamp(row[1] / 1000)} for row in cursor.fetchall()]
     conn.close()
 
