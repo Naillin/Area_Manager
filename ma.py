@@ -106,7 +106,7 @@ class MovingAverage:
         ema_data.append({"Value_Data": ema, "Time_Data": data[0]["Time_Data"]})
 
         # Рассчитываем EMA для оставшихся данных
-        for i in range(1, len(data_values)):
+        for i in range(len(data_values)):
             if i < self.window_size - 1:
                 ema_data.append(
                     {"Value_Data": None, "Time_Data": data[i]["Time_Data"]})  # Недостаточно данных для расчета
