@@ -210,7 +210,7 @@ class ElevationAnalyzer:
     #         'islands': islands
     #     }
 
-    def are_neighbors(self, coord1, coord2, check_distance):
+    def are_neighbors(self, coord1, coord2, check_distance=50):
         lat1, lon1 = coord1
         lat2, lon2 = coord2
         distance = math.sqrt((lat1 - lat2) ** 2 + (lon1 - lon2) ** 2)

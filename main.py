@@ -126,7 +126,7 @@ def main():
                     initial_height = p3  # Используем последнее предсказанное значение (p3)
 
                     # Вычисляем точки
-                    result = analyzer.find_depression_area_with_islands(center_coords, initial_height)
+                    result = analyzer.find_depression_area_with_islands(center_coords, initial_height, 200)
 
                     # Открываем соединение для записи данных
                     with sqlite3.connect(db_path) as conn:
