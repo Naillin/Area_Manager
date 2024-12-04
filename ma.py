@@ -103,7 +103,7 @@ class MovingAverage:
 
         # Инициализация EMA: начальное значение берется как первый элемент
         ema = data_values[0]
-        ema_data.append({"Value_Data": ema, "Time_Data": data[0]["Time_Data"]})
+        #ema_data.append({"Value_Data": ema, "Time_Data": data[0]["Time_Data"]})
 
         # Рассчитываем EMA для оставшихся данных
         for i in range(len(data_values)):
