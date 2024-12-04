@@ -164,11 +164,11 @@ def check_topic_conditions(topic_id, db_path):
     logger.info(f"Actual values for topic {topic_id}: f1={f1}, f2={f2}")
 
     # Проверяем условия
-    if p3 > alt and f1 < f2:
-        logger.info(f"Conditions met for topic {topic_id}: p3={p3} > alt={alt} and f1={f1} < f2={f2}")
+    if p3 > alt and f1 > f2:
+        logger.info(f"Conditions met for topic {topic_id}: p3={p3} > alt={alt} and f1={f1} > f2={f2}")
         return True, p3
     else:
-        logger.info(f"Conditions not met for topic {topic_id}: p3={p3} > alt={alt} and f1={f1} < f2={f2}")
+        logger.info(f"Conditions not met for topic {topic_id}: p3={p3} > alt={alt} and f1={f1} > f2={f2}")
         return False, p3
 
 def main():
