@@ -221,7 +221,7 @@ def main():
 
                         # Обновляем CheckTime_Topic
                         cursor.execute("""
-                            UPDATE Topic SET CheckTime_Topic = ? WHERE ID_Topic = ?
+                            UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
                         """, (datetime.now().timestamp(), topic_id))
 
                         conn.commit()
@@ -279,7 +279,7 @@ main()
 #         with sqlite3.connect(db_path) as conn:
 #             conn.execute('PRAGMA journal_mode=WAL')
 #             cursor = conn.cursor()
-#             cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topic")
+#             cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topics")
 #             topics = cursor.fetchall()
 #
 #         for topic in topics:
@@ -322,7 +322,7 @@ main()
 #
 #                         # Обновляем CheckTime_Topic
 #                         cursor.execute("""
-#                             UPDATE Topic SET CheckTime_Topic = ? WHERE ID_Topic = ?
+#                             UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
 #                         """, (datetime.now().timestamp(), topic_id))
 #
 #                         conn.commit()
