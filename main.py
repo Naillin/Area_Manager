@@ -1,11 +1,12 @@
 import sqlite3
 import asyncio
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import platform
 from logging.handlers import SysLogHandler
 from ElevationAnalyzer import ElevationAnalyzer
+from ma import MovingAverage
 
 # Настройка корневого логгера
 root_logger = logging.getLogger()
@@ -25,88 +26,8 @@ else:
 # Логгер для main.py
 logger = logging.getLogger('area-manager.main')
 
-def calculate_moving_average(data, window_size = 7):
-    moving_average = []
 
-    # Преобразуем строковые значения в числа
-    data_values = [float(item['Value_Data']) for item in data]
-    logger.debug(f"Data values: {data_values}")
-
-    # Рассчитываем скользящее среднее
-    for i in range(len(data_values)):
-        if i < window_size - 1:
-            moving_average.append({'Value_Data': None, 'Time_Data': data[i]['Time_Data']})  # Недостаточно данных для расчета
-        else:
-            sum_values = sum(data_values[i - window_size + 1:i + 1])
-            average = sum_values / window_size
-            moving_average.append({'Value_Data': average, 'Time_Data': data[i]['Time_Data']})
-            logger.debug(f"Moving average at index {i}: {average}")
-
-    # Предсказываем на 3 дня вперед с учетом тенденции
-    last_values = data_values[-window_size:]
-    last_times = [item['Time_Data'] for item in data[-window_size:]]
-    last_average = sum(last_values) / window_size
-    logger.debug(f"Last average: {last_average}")
-
-    # Рассчитываем средний интервал времени между последними событиями
-    time_intervals = [(last_times[i + 1] - last_times[i]).total_seconds() for i in range(len(last_times) - 1)]
-    average_time_interval = sum(time_intervals) / len(time_intervals)
-    logger.debug(f"Average time interval: {average_time_interval}")
-
-    # Рассчитываем тенденцию (наклон)
-    slope = (last_values[-1] - last_values[0]) / (window_size - 1)
-    logger.debug(f"Slope: {slope}")
-
-    for i in range(3):
-        predicted_value = last_average + slope * (i + 1)
-        predicted_time = last_times[-1] + timedelta(seconds=average_time_interval * (i + 1))
-        moving_average.append({'Value_Data': predicted_value, 'Time_Data': predicted_time})
-        logger.debug(f"Predicted value for day {i + 1}: {predicted_value} at {predicted_time}")
-
-    return moving_average
-
-def calculate_ema(data, window_size = 5, alpha = 0.8):
-    ema = []
-
-    # Преобразуем строковые значения в числа
-    data_values = [float(item['Value_Data']) for item in data]
-
-    # Рассчитываем EMA
-    for i in range(len(data_values)):
-        if i < window_size - 1:
-            ema.append({'Value_Data': None, 'Time_Data': data[i]['Time_Data']})  # Недостаточно данных для расчета
-        else:
-            if i == window_size - 1:
-                # Начальное значение EMA - простое скользящее среднее
-                sum_values = sum(data_values[0:window_size])
-                average = sum_values / window_size
-                ema.append({'Value_Data': average, 'Time_Data': data[i]['Time_Data']})
-            else:
-                # Рассчитываем EMA
-                previous_ema = ema[i - 1]['Value_Data']
-                current_value = data_values[i]
-                current_ema = alpha * current_value + (1 - alpha) * previous_ema
-                ema.append({'Value_Data': current_ema, 'Time_Data': data[i]['Time_Data']})
-
-    # Предсказываем на 3 дня вперед с учетом тенденции
-    last_values = data_values[-window_size:]
-    last_times = [item['Time_Data'] for item in data[-window_size:]]
-    last_ema = ema[-1]['Value_Data']
-
-    # Рассчитываем средний интервал времени между последними событиями
-    time_intervals = [(last_times[i + 1] - last_times[i]).total_seconds() for i in range(len(last_times) - 1)]
-    average_time_interval = sum(time_intervals) / len(time_intervals)
-
-    # Рассчитываем тенденцию (наклон)
-    slope = (last_values[-1] - last_values[0]) / (window_size - 1)
-
-    for i in range(3):
-        predicted_value = last_ema + slope * (i + 1)
-        predicted_time = last_times[-1] + timedelta(seconds=average_time_interval * (i + 1))
-        ema.append({'Value_Data': predicted_value, 'Time_Data': predicted_time})
-
-    return ema
-
+ma = MovingAverage(5)
 def check_topic_conditions(topic_id, db_path):
     conn = sqlite3.connect(db_path)
     conn.execute('PRAGMA journal_mode=WAL')
@@ -134,8 +55,9 @@ def check_topic_conditions(topic_id, db_path):
     logger.info(f"Data for topic {topic_id}: {data}")
 
     # Вычисляем скользящее среднее и предсказываем 3 события
-    #predicted_events = calculate_moving_average(data, 7)
-    predicted_events = calculate_ema(data, 7, 0.9)
+    #predicted_events = ma.calculate_moving_average(data)
+    #predicted_events = ma.calculate_ema(data, 0.9)
+    predicted_events = ma.calculate_ema_test(data, 11)
     if len(predicted_events) < 10:
         logger.warning(f"Not enough data to predict for topic {topic_id}.")
         return False, None  # Недостаточно данных для предсказания
