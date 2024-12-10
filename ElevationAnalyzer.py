@@ -16,19 +16,35 @@ class ElevationAnalyzer:
     def get_elevation(self, coords):
         url = f"https://api.open-elevation.com/api/v1/lookup?locations={coords[0]},{coords[1]}"
 
-        # Задержка перед запросом
-        time.sleep(self.delay_ms / 1000)
+        # Максимальное количество попыток
+        max_attempts = 3
+        attempt = 0
 
-        response = requests.get(url)
-        data = response.json()
+        while attempt < max_attempts:
+            # Задержка перед запросом
+            time.sleep(self.delay_ms / 1000)
 
-        if data.get('results') and len(data['results']) > 0:
-            elevation = data['results'][0]['elevation']
-            logger.info(f"Высота точки {coords}: {elevation}")
-            return elevation
-        else:
-            logger.warning('No elevation data found for the given coordinates.')
-            return None
+            try:
+                response = requests.get(url, timeout=10)  # Устанавливаем таймаут для запроса
+                response.raise_for_status()  # Выбрасываем исключение, если статус ответа не 200
+                data = response.json()
+
+                if data.get('results') and len(data['results']) > 0:
+                    elevation = data['results'][0]['elevation']
+                    logger.info(f"Высота точки {coords}: {elevation}")
+                    return elevation
+                else:
+                    logger.warning('No elevation data found for the given coordinates.')
+                    return None
+
+            except requests.exceptions.RequestException as e:
+                attempt += 1
+                if attempt < max_attempts:
+                    logger.warning(f"Request failed: {e}. Retrying in 5 seconds...")
+                    time.sleep(5)  # Задержка перед повторной попыткой
+                else:
+                    logger.error(f"Request failed after {max_attempts} attempts: {e}")
+                    return None
 
     # async def get_elevation(coords, delay_ms=150):
     #     url = f"https://api.open-elevation.com/api/v1/lookup?locations={coords[0]},{coords[1]}"

@@ -48,7 +48,7 @@ class MovingAverage:
 
         return moving_average
 
-    def calculate_ema(self, data, alpha=0.2):
+    def calculate_ema_alpha(self, data, alpha=0.2):
         ema = []
 
         # Преобразуем строковые значения в числа
@@ -90,7 +90,7 @@ class MovingAverage:
 
         return ema
 
-    def calculate_ema_test(self, data, smoothing=2):
+    def calculate_ema_smooth(self, data, smoothing=2):
         # Проверка на пустоту данных
         if not data:
             return []

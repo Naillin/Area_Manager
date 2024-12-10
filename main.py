@@ -8,6 +8,12 @@ from logging.handlers import SysLogHandler
 from ElevationAnalyzer import ElevationAnalyzer
 from ma import MovingAverage
 
+DISTANCE = 200
+DELAY_MS = 150
+WINDOW_SIZE = 5
+SMOOTHING = 11
+ALPHA = 0.9
+
 # Настройка корневого логгера
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
@@ -27,7 +33,7 @@ else:
 logger = logging.getLogger('area-manager.main')
 
 
-ma = MovingAverage(5)
+ma = MovingAverage(WINDOW_SIZE)
 def check_topic_conditions(topic_id, db_path):
     conn = sqlite3.connect(db_path)
     conn.execute('PRAGMA journal_mode=WAL')
@@ -56,8 +62,8 @@ def check_topic_conditions(topic_id, db_path):
 
     # Вычисляем скользящее среднее и предсказываем 3 события
     #predicted_events = ma.calculate_moving_average(data)
-    #predicted_events = ma.calculate_ema(data, 0.9)
-    predicted_events = ma.calculate_ema_test(data, 11)
+    #predicted_events = ma.calculate_ema_alpha(data, 0.9)
+    predicted_events = ma.calculate_ema_smooth(data, SMOOTHING)
     if len(predicted_events) < 10:
         logger.warning(f"Not enough data to predict for topic {topic_id}.")
         return False, None  # Недостаточно данных для предсказания
@@ -96,7 +102,7 @@ def check_topic_conditions(topic_id, db_path):
 def main():
     logger.info(f"Starting...")
     db_path = '../MQTT_Data_collector/mqtt_data.db'
-    analyzer = ElevationAnalyzer(150)
+    analyzer = ElevationAnalyzer(DELAY_MS)
 
     logger.info(f"All done!")
     while True:
@@ -126,7 +132,7 @@ def main():
                     initial_height = p3  # Используем последнее предсказанное значение (p3)
 
                     # Вычисляем точки
-                    result = analyzer.find_depression_area_with_islands(center_coords, initial_height, 200)
+                    result = analyzer.find_depression_area_with_islands(center_coords, initial_height, DISTANCE)
 
                     # Открываем соединение для записи данных
                     with sqlite3.connect(db_path) as conn:
@@ -153,7 +159,25 @@ def main():
                         conn.commit()
                         logger.info(f"Data for topic {topic_id} inserted into AreaPoints and CheckTime_Topic updated.")
                 else:
-                    logger.info(f"Conditions not met for topic {topic_id}. Skipping calculation.")
+                    logger.info(f"Conditions not met for topic {topic_id}. Clearing data from AreaPoints.")
+
+                    # Открываем соединение для очистки данных
+                    with sqlite3.connect(db_path) as conn:
+                        conn.execute('PRAGMA journal_mode=WAL')
+                        cursor = conn.cursor()
+
+                        # Удаляем данные из таблицы AreaPoints для топика
+                        cursor.execute("""
+                            DELETE FROM AreaPoints WHERE ID_Topic = ?
+                        """, (topic_id,))
+
+                        # Обновляем CheckTime_Topic
+                        cursor.execute("""
+                            UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
+                        """, (datetime.now().timestamp(), topic_id))
+
+                        conn.commit()
+                        logger.info(f"Data for topic {topic_id} cleared from AreaPoints and CheckTime_Topic updated.")
             else:
                 logger.info(f"Topic {topic_id} was recently checked. Skipping calculation.")
 
