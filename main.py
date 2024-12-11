@@ -104,6 +104,9 @@ def main():
     db_path = '../MQTT_Data_collector/mqtt_data.db'
     analyzer = ElevationAnalyzer(DELAY_MS)
 
+    # Глобальный словарь для хранения времени последнего изменения данных для каждого топика
+    last_data_change = {}
+
     logger.info(f"All done!")
     while True:
         # Получаем все топики
@@ -119,57 +122,88 @@ def main():
 
             # Проверяем, когда был последний расчет
             if check_time is None or (datetime.now() - datetime.fromtimestamp(check_time)).total_seconds() >= 2 * 3600:
-                # Открываем соединение для проверки условий
+                # Если расчет был 2 часа назад, то нужно повторить проверку по параметрам затопления
+
+                # Проверяем, есть ли новые данные в таблице Data с момента последнего расчета
                 with sqlite3.connect(db_path) as conn:
                     conn.execute('PRAGMA journal_mode=WAL')
                     cursor = conn.cursor()
-                    conditions_met, p3 = check_topic_conditions(topic_id, db_path)
+                    cursor.execute("SELECT MAX(Time_Data) FROM Data WHERE ID_Topic = ?", (topic_id,))
+                    latest_data_time = cursor.fetchone()[0]
 
-                if conditions_met:
-                    logger.info(f"Conditions met for topic {topic_id}. Calculating area points.")
+                # Если есть новые данные, или это первый расчет для топика
+                if (topic_id not in last_data_change) or (latest_data_time is None) or (latest_data_time > last_data_change[topic_id]):
+                    last_data_change[topic_id] = latest_data_time  # Обновляем время последнего изменения данных
 
-                    center_coords = (latitude, longitude)
-                    initial_height = p3  # Используем последнее предсказанное значение (p3)
-
-                    # Вычисляем точки
-                    result = analyzer.find_depression_area_with_islands(center_coords, initial_height, DISTANCE)
-
-                    # Открываем соединение для записи данных
+                    # Открываем соединение для проверки условий
                     with sqlite3.connect(db_path) as conn:
                         conn.execute('PRAGMA journal_mode=WAL')
                         cursor = conn.cursor()
+                        conditions_met, p3 = check_topic_conditions(topic_id, db_path)
 
-                        # Удаляем старые данные для топика
-                        cursor.execute("""
-                            DELETE FROM AreaPoints WHERE ID_Topic = ?
-                        """, (topic_id,))
+                    if conditions_met:
+                        # Если данные прошли проверку по параметрам затопления, то топику угрожает затопление. Рассчет области затопления.
+                        logger.info(f"Conditions met for topic {topic_id}. Calculating area points.")
 
-                        # Записываем новые данные в таблицу AreaPoints
-                        cursor.execute("""
-                            INSERT INTO AreaPoints (ID_Topic, Depression_AreaPoint, Perimeter_AreaPoint, Included_AreaPoint, Islands_AreaPoint)
-                            VALUES (?, ?, ?, ?, ?)
-                        """, (topic_id, str(result['depression_points']), str(result['perimeter_points']),
-                              str(result['included_points']), str(result['islands'])))
+                        center_coords = (latitude, longitude)
+                        initial_height = p3  # Используем последнее предсказанное значение (p3)
 
-                        # Обновляем CheckTime_Topic
-                        cursor.execute("""
-                            UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
-                        """, (datetime.now().timestamp(), topic_id))
+                        # Вычисляем точки
+                        result = analyzer.find_depression_area_with_islands(center_coords, initial_height, DISTANCE)
 
-                        conn.commit()
-                        logger.info(f"Data for topic {topic_id} inserted into AreaPoints and CheckTime_Topic updated.")
+                        # Открываем соединение для записи данных
+                        with sqlite3.connect(db_path) as conn:
+                            conn.execute('PRAGMA journal_mode=WAL')
+                            cursor = conn.cursor()
+
+                            # Удаляем старые данные для топика
+                            cursor.execute("""
+                                DELETE FROM AreaPoints WHERE ID_Topic = ?
+                            """, (topic_id,))
+
+                            # Записываем новые данные в таблицу AreaPoints
+                            cursor.execute("""
+                                INSERT INTO AreaPoints (ID_Topic, Depression_AreaPoint, Perimeter_AreaPoint, Included_AreaPoint, Islands_AreaPoint)
+                                VALUES (?, ?, ?, ?, ?)
+                            """, (topic_id, str(result['depression_points']), str(result['perimeter_points']),
+                                  str(result['included_points']), str(result['islands'])))
+
+                            # Обновляем CheckTime_Topic
+                            cursor.execute("""
+                                UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
+                            """, (datetime.now().timestamp(), topic_id))
+
+                            conn.commit()
+                            logger.info(f"Data for topic {topic_id} inserted into AreaPoints and CheckTime_Topic updated.")
+                    else:
+                        # Если данные не прошли проверку по параметрам затопления, то топику не угрожает затопление. Очистка данных области затопления.
+                        logger.info(f"Conditions not met for topic {topic_id}. Clearing data from AreaPoints.")
+
+                        # Открываем соединение для очистки данных
+                        with sqlite3.connect(db_path) as conn:
+                            conn.execute('PRAGMA journal_mode=WAL')
+                            cursor = conn.cursor()
+
+                            # Удаляем данные из таблицы AreaPoints для топика
+                            cursor.execute("""
+                                DELETE FROM AreaPoints WHERE ID_Topic = ?
+                            """, (topic_id,))
+
+                            # Обновляем CheckTime_Topic
+                            cursor.execute("""
+                                UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
+                            """, (datetime.now().timestamp(), topic_id))
+
+                            conn.commit()
+                            logger.info(f"Data for topic {topic_id} cleared from AreaPoints and CheckTime_Topic updated.")
                 else:
-                    logger.info(f"Conditions not met for topic {topic_id}. Clearing data from AreaPoints.")
+                    # Если новых данных нет, то расчет не требуется, но обновляем CheckTime_Topic, чтобы отметить, что топик был проверен
+                    logger.info(f"No new data for topic {topic_id} since last calculation. Updating CheckTime_Topic.")
 
-                    # Открываем соединение для очистки данных
+                    # Открываем соединение для обновления CheckTime_Topic
                     with sqlite3.connect(db_path) as conn:
                         conn.execute('PRAGMA journal_mode=WAL')
                         cursor = conn.cursor()
-
-                        # Удаляем данные из таблицы AreaPoints для топика
-                        cursor.execute("""
-                            DELETE FROM AreaPoints WHERE ID_Topic = ?
-                        """, (topic_id,))
 
                         # Обновляем CheckTime_Topic
                         cursor.execute("""
@@ -177,8 +211,9 @@ def main():
                         """, (datetime.now().timestamp(), topic_id))
 
                         conn.commit()
-                        logger.info(f"Data for topic {topic_id} cleared from AreaPoints and CheckTime_Topic updated.")
+                        logger.info(f"CheckTime_Topic updated for topic {topic_id}.")
             else:
+                # Если топик был проверен менее 2 часов назад, то пропускаем расчет
                 logger.info(f"Topic {topic_id} was recently checked. Skipping calculation.")
 
         time.sleep(60)  # Пауза перед следующей итерацией
@@ -219,70 +254,3 @@ def main():
 
 # Запуск функции
 main()
-
-# async def main(): # убрать асинхронность
-#     db_path = '../MQTT_Data_collector/mqtt_data.db'
-#     analyzer = ElevationAnalyzer()
-#
-#     while True:
-#         # Получаем все топики
-#         with sqlite3.connect(db_path) as conn:
-#             conn.execute('PRAGMA journal_mode=WAL')
-#             cursor = conn.cursor()
-#             cursor.execute("SELECT ID_Topic, Latitude_Topic, Longitude_Topic, CheckTime_Topic FROM Topics")
-#             topics = cursor.fetchall()
-#
-#         for topic in topics:
-#             topic_id, latitude, longitude, check_time = topic
-#             logger.info(f"Checking topic {topic_id}")
-#
-#             # Проверяем, когда был последний расчет
-#             if check_time is None or (datetime.now() - datetime.fromtimestamp(check_time)).total_seconds() >= 2 * 3600:
-#                 # Открываем соединение для проверки условий
-#                 with sqlite3.connect(db_path) as conn:
-#                     conn.execute('PRAGMA journal_mode=WAL')
-#                     cursor = conn.cursor()
-#                     conditions_met, p3 = check_topic_conditions(topic_id, db_path)
-#
-#                 if conditions_met:
-#                     logger.info(f"Conditions met for topic {topic_id}. Calculating area points.")
-#
-#                     center_coords = (latitude, longitude)
-#                     initial_height = p3  # Используем последнее предсказанное значение (p3)
-#
-#                     # Вычисляем точки
-#                     result = await analyzer.find_depression_area_with_islands(center_coords, initial_height)
-#
-#                     # Открываем соединение для записи данных
-#                     with sqlite3.connect(db_path) as conn:
-#                         conn.execute('PRAGMA journal_mode=WAL')
-#                         cursor = conn.cursor()
-#
-#                         # Удаляем старые данные для топика
-#                         cursor.execute("""
-#                             DELETE FROM AreaPoints WHERE ID_Topic = ?
-#                         """, (topic_id,))
-#
-#                         # Записываем новые данные в таблицу AreaPoints
-#                         cursor.execute("""
-#                             INSERT INTO AreaPoints (ID_Topic, Depression_AreaPoint, Perimeter_AreaPoint, Included_AreaPoint, Islands_AreaPoint)
-#                             VALUES (?, ?, ?, ?, ?)
-#                         """, (topic_id, str(result['depression_points']), str(result['perimeter_points']),
-#                               str(result['included_points']), str(result['islands']))) #понять как работае
-#
-#                         # Обновляем CheckTime_Topic
-#                         cursor.execute("""
-#                             UPDATE Topics SET CheckTime_Topic = ? WHERE ID_Topic = ?
-#                         """, (datetime.now().timestamp(), topic_id))
-#
-#                         conn.commit()
-#                         logger.info(f"Data for topic {topic_id} inserted into AreaPoints and CheckTime_Topic updated.")
-#                 else:
-#                     logger.info(f"Conditions not met for topic {topic_id}. Skipping calculation.")
-#             else:
-#                 logger.info(f"Topic {topic_id} was recently checked. Skipping calculation.")
-#
-#         await asyncio.sleep(60)  # Пауза перед следующей итерацией
-#
-# # Запуск асинхронной функции
-# asyncio.run(main())
