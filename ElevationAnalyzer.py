@@ -34,7 +34,7 @@ class ElevationAnalyzer:
 
                 if response.status_code == 504:
                     logger.warning(f"504 Error for coordinates {rounded_coords}. Skipping...")
-                    return None  # Пропускаем координаты с ошибкой
+                    return 0.0  # Пропускаем координаты с ошибкой
 
                 response.raise_for_status()  # Выбрасываем исключение, если статус ответа не 200
 
