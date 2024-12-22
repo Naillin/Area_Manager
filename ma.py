@@ -90,7 +90,7 @@ class MovingAverage:
 
         return ema
 
-    def calculate_ema_smooth(self, data, smoothing=2):
+    def calculate_ema_smooth(self, data, smoothing=2, slope_factor=1):
         # Проверка на пустоту данных
         if not data:
             return []
@@ -131,7 +131,7 @@ class MovingAverage:
         logger.debug(f"Slope: {slope}")
 
         for i in range(3):
-            predicted_value = last_ema + slope * (i + 1)
+            predicted_value = last_ema + slope * (i + slope_factor)
             predicted_time = last_times[-1] + average_time_interval * (i + 1)
             ema_data.append({"Value_Data": predicted_value, "Time_Data": predicted_time})
             logger.debug(f"Predicted value for day {i + 1}: {predicted_value} at {predicted_time}")

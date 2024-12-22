@@ -10,9 +10,12 @@ from ma import MovingAverage
 
 DISTANCE = 200
 DELAY_MS = 150
-WINDOW_SIZE = 5
-SMOOTHING = 11
+WINDOW_SIZE = 7
+SMOOTHING = 10
+SLOPE_FACTOR = 3
+
 ALPHA = 0.9
+
 
 # Настройка корневого логгера
 root_logger = logging.getLogger()
@@ -63,7 +66,7 @@ def check_topic_conditions(topic_id, db_path):
     # Вычисляем скользящее среднее и предсказываем 3 события
     #predicted_events = ma.calculate_moving_average(data)
     #predicted_events = ma.calculate_ema_alpha(data, 0.9)
-    predicted_events = ma.calculate_ema_smooth(data, SMOOTHING)
+    predicted_events = ma.calculate_ema_smooth(data, SMOOTHING, SLOPE_FACTOR)
     if len(predicted_events) < 10:
         logger.warning(f"Not enough data to predict for topic {topic_id}.")
         return False, None  # Недостаточно данных для предсказания
@@ -155,6 +158,16 @@ def main():
                         with sqlite3.connect(db_path) as conn:
                             conn.execute('PRAGMA journal_mode=WAL')
                             cursor = conn.cursor()
+
+                            # Проверяем, существует ли топик в базе данных
+                            cursor.execute("""
+                                SELECT 1 FROM Topics WHERE ID_Topic = ?
+                            """, (topic_id,))
+                            topic_exists = cursor.fetchone()
+
+                            if not topic_exists:
+                                logger.warning(f"Topic {topic_id} does not exist in the database or was deleted. Skipping operations.")
+                                continue  # Прерываем выполнение, если топик не найден
 
                             # Удаляем старые данные для топика
                             cursor.execute("""
