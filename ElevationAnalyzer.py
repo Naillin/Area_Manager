@@ -33,7 +33,7 @@ class ElevationAnalyzer:
 
                 if data.get('results') and len(data['results']) > 0:
                     elevation = data['results'][0]['elevation']
-                    logger.info(f"Высота точки {coords}: {elevation}")
+                    logger.info(f"Высота точки {rounded_coords}: {elevation}")
                     return elevation
                 else:
                     logger.warning('No elevation data found for the given coordinates.')
@@ -97,7 +97,7 @@ class ElevationAnalyzer:
                 return
             checked_points.add(current_key)
 
-            current_elevation = self.get_elevation(current_point)
+            current_elevation = self.get_elevation(current_point, 6)
 
             if current_elevation < current_height:
                 depression_points.add(current_key)
