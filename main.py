@@ -9,7 +9,7 @@ from ElevationAnalyzer import ElevationAnalyzer
 from ma import MovingAverage
 
 DISTANCE = 200
-DELAY_MS = 150
+DELAY_MS = 300
 WINDOW_SIZE = 7
 SMOOTHING = 10
 SLOPE_FACTOR = 3
