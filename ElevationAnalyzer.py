@@ -33,8 +33,8 @@ class ElevationAnalyzer:
                 response = requests.get(url, timeout=10, headers=headers)  # Устанавливаем таймаут для запроса
                 response.raise_for_status()  # Выбрасываем исключение, если статус ответа не 200
 
-                if response.status_code == 503:
-                    logger.warning(f"503 Error for coordinates {rounded_coords}. Skipping...")
+                if response.status_code == 504:
+                    logger.warning(f"504 Error for coordinates {rounded_coords}. Skipping...")
                     return None  # Пропускаем координаты с ошибкой
 
                 data = response.json()
