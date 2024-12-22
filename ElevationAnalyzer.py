@@ -32,6 +32,11 @@ class ElevationAnalyzer:
             try:
                 response = requests.get(url, timeout=10, headers=headers)  # Устанавливаем таймаут для запроса
                 response.raise_for_status()  # Выбрасываем исключение, если статус ответа не 200
+
+                if response.status_code == 503:
+                    logger.warning(f"503 Error for coordinates {rounded_coords}. Skipping...")
+                    return None  # Пропускаем координаты с ошибкой
+
                 data = response.json()
 
                 if data.get('results') and len(data['results']) > 0:
@@ -100,7 +105,7 @@ class ElevationAnalyzer:
                 return
             checked_points.add(current_key)
 
-            current_elevation = self.get_elevation(current_point, 6)
+            current_elevation = self.get_elevation(current_point, 8)
 
             if current_elevation < current_height:
                 depression_points.add(current_key)
