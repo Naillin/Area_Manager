@@ -26,8 +26,11 @@ class ElevationAnalyzer:
             # Задержка перед запросом
             time.sleep(self.delay_ms / 1000)
 
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
+            }
             try:
-                response = requests.get(url, timeout=10)  # Устанавливаем таймаут для запроса
+                response = requests.get(url, timeout=10, headers=headers)  # Устанавливаем таймаут для запроса
                 response.raise_for_status()  # Выбрасываем исключение, если статус ответа не 200
                 data = response.json()
 
