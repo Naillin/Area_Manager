@@ -10,11 +10,13 @@ logger = logging.getLogger('area-manager.ElevationAnalyzer')
 
 class ElevationAnalyzer:
 
-    def __init__(self, delay_ms):
+    def __init__(self, delay_ms=1000):
         self.delay_ms = delay_ms
 
-    def get_elevation(self, coords):
-        url = f"https://api.open-elevation.com/api/v1/lookup?locations={coords[0]},{coords[1]}"
+    def get_elevation(self, coords, round_digits=6):
+        # Округляем координаты
+        rounded_coords = [round(coord, round_digits) for coord in coords]
+        url = f"https://api.open-elevation.com/api/v1/lookup?locations={rounded_coords[0]},{rounded_coords[1]}"
 
         # Максимальное количество попыток
         max_attempts = 3
